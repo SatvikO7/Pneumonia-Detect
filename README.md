@@ -19,7 +19,7 @@ Follow these steps to get the project running on your local machine.
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/SatvikO7/pneumonia-detection.git
+https://github.com/SatvikO7/Pneumonia-Detect.git
 cd pneumonia-detection
 ```
 
