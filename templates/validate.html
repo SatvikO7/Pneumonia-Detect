@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Validation | Pneumonia Detection AI</title>
+    <meta name="description" content="Test and validate the pneumonia detection model with labeled samples.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #f1f5f9;
+            --bg-card: #ffffff;
+            --border-color: #e2e8f0;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --accent-cyan: #0ea5e9;
+            --accent-purple: #0284c7;
+            --accent-emerald: #16a34a;
+            --accent-coral: #dc2626;
+            --accent-amber: #d97706;
+            --gradient-1: linear-gradient(135deg, #0ea5e9 0%, #0284c7 50%, #0369a1 100%);
+            --gradient-2: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--gradient-2);
+            min-height: 100vh;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .bg-animation::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 30% 30%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 70% 70%, rgba(245, 158, 11, 0.08) 0%, transparent 50%);
+            animation: bgFloat 20s ease-in-out infinite;
+        }
+
+        @keyframes bgFloat {
+
+            0%,
+            100% {
+                transform: translate(0, 0) rotate(0deg);
+            }
+
+            33% {
+                transform: translate(2%, 2%) rotate(1deg);
+            }
+
+            66% {
+                transform: translate(-1%, 1%) rotate(-1deg);
+            }
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Navigation */
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .nav-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            padding: 10px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-back:hover {
+            color: var(--accent-cyan);
+            border-color: var(--accent-cyan);
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #f59e0b 0%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 12px;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .stat-card .label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-card.total .value {
+            color: var(--accent-cyan);
+        }
+
+        .stat-card.correct .value {
+            color: var(--accent-emerald);
+        }
+
+        .stat-card.wrong .value {
+            color: var(--accent-coral);
+        }
+
+        .stat-card.accuracy .value {
+            color: var(--accent-amber);
+        }
+
+        /* Main Card */
+        .main-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 40px;
+            margin-bottom: 32px;
+        }
+
+        /* Upload Section */
+        .upload-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+            align-items: start;
+        }
+
+        @media (max-width: 768px) {
+            .upload-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .upload-zone {
+            border: 2px dashed var(--border-color);
+            border-radius: 16px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(139, 92, 246, 0.02);
+        }
+
+        .upload-zone:hover,
+        .upload-zone.drag-over {
+            border-color: var(--accent-purple);
+        }
+
+        .upload-icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .upload-zone h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .upload-zone p {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        #imageInput {
+            display: none;
+        }
+
+        .preview-img {
+            display: none;
+            margin-top: 16px;
+            max-width: 100%;
+            max-height: 150px;
+            border-radius: 8px;
+        }
+
+        .preview-img.active {
+            display: block;
+        }
+
+        /* Label Selection */
+        .label-section h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .label-options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .label-option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .label-option:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .label-option.selected.normal {
+            border-color: var(--accent-emerald);
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .label-option.selected.pneumonia {
+            border-color: var(--accent-coral);
+            background: rgba(244, 63, 94, 0.1);
+        }
+
+        .label-option input {
+            display: none;
+        }
+
+        .label-option .icon {
+            font-size: 24px;
+        }
+
+        .label-option .text {
+            font-weight: 600;
+        }
+
+        .label-option .desc {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        /* Test Button */
+        .test-btn {
+            width: 100%;
+            margin-top: 24px;
+            padding: 16px 32px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(135deg, #f59e0b 0%, #8b5cf6 100%);
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .test-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .test-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Result Display */
+        .result-display {
+            display: none;
+            margin-top: 32px;
+            padding: 24px;
+            border-radius: 16px;
+            text-align: center;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .result-display.active {
+            display: block;
+        }
+
+        .result-display.correct {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .result-display.wrong {
+            background: rgba(244, 63, 94, 0.1);
+            border: 1px solid rgba(244, 63, 94, 0.3);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .result-text {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .result-details {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* History Table */
+        .history-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            overflow: hidden;
+        }
+
+        .history-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-header h3 {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .clear-btn {
+            padding: 8px 16px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .clear-btn:hover {
+            color: var(--accent-coral);
+            border-color: var(--accent-coral);
+        }
+
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .history-table th,
+        .history-table td {
+            padding: 14px 20px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .history-table th {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .history-table td {
+            font-size: 0.9rem;
+        }
+
+        .history-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge.normal {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--accent-emerald);
+        }
+
+        .badge.pneumonia {
+            background: rgba(244, 63, 94, 0.2);
+            color: var(--accent-coral);
+        }
+
+        .badge.correct {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--accent-emerald);
+        }
+
+        .badge.wrong {
+            background: rgba(244, 63, 94, 0.2);
+            color: var(--accent-coral);
+        }
+
+        .empty-state {
+            padding: 40px;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .container {
+                padding: 20px 16px;
+            }
+
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .main-card {
+                padding: 24px;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-animation"></div>
+
+    <div class="container">
+        <nav class="nav">
+            <a href="/" class="nav-back">← Back to Diagnosis</a>
+        </nav>
+
+        <header class="header">
+            <h1>🧪 Model Validation</h1>
+            <p>Test your model with labeled samples and track accuracy</p>
+        </header>
+
+        <div class="stats-grid">
+            <div class="stat-card total">
+                <div class="value" id="stat-total">0</div>
+                <div class="label">Total Tests</div>
+            </div>
+            <div class="stat-card correct">
+                <div class="value" id="stat-correct">0</div>
+                <div class="label">Correct</div>
+            </div>
+            <div class="stat-card wrong">
+                <div class="value" id="stat-wrong">0</div>
+                <div class="label">Wrong</div>
+            </div>
+            <div class="stat-card accuracy">
+                <div class="value" id="stat-accuracy">--%</div>
+                <div class="label">Accuracy</div>
+            </div>
+        </div>
+
+        <div class="main-card">
+            <form id="validate-form">
+                <div class="upload-section">
+                    <div>
+                        <div class="upload-zone" id="upload-zone">
+                            <span class="upload-icon">🩻</span>
+                            <h3>Upload Test X-Ray</h3>
+                            <p>Drag & drop or click to browse</p>
+                            <input type="file" id="imageInput" name="file" accept="image/*" required>
+                        </div>
+                        <img class="preview-img" id="preview-img" src="" alt="Preview">
+                    </div>
+
+                    <div class="label-section">
+                        <h3>What is the TRUE diagnosis?</h3>
+                        <div class="label-options">
+                            <label class="label-option normal" id="label-normal">
+                                <input type="radio" name="true_label" value="NORMAL" required>
+                                <span class="icon">✅</span>
+                                <div>
+                                    <div class="text">NORMAL</div>
+                                    <div class="desc">Healthy lung, no pneumonia</div>
+                                </div>
+                            </label>
+                            <label class="label-option pneumonia" id="label-pneumonia">
+                                <input type="radio" name="true_label" value="PNEUMONIA" required>
+                                <span class="icon">🔴</span>
+                                <div>
+                                    <div class="text">PNEUMONIA</div>
+                                    <div class="desc">Confirmed pneumonia case</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="test-btn" id="test-btn">
+                    🔬 Test Prediction
+                </button>
+            </form>
+
+            <div class="result-display" id="result-display">
+                <div class="result-icon" id="result-icon"></div>
+                <div class="result-text" id="result-text"></div>
+                <div class="result-details" id="result-details"></div>
+            </div>
+        </div>
+
+        <div class="history-card">
+            <div class="history-header">
+                <h3>📋 Test History</h3>
+                <button class="clear-btn" id="clear-btn">Clear All</button>
+            </div>
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>File</th>
+                        <th>True Label</th>
+                        <th>Prediction</th>
+                        <th>Confidence</th>
+                        <th>Result</th>
+                    </tr>
+                </thead>
+                <tbody id="history-body">
+                    <tr class="empty-row">
+                        <td colspan="6" class="empty-state">No tests yet. Upload an image to start!</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let stats = { total: 0, correct: 0, wrong: 0 };
+        let history = [];
+
+        // Load from localStorage
+        if (localStorage.getItem('validationStats')) {
+            stats = JSON.parse(localStorage.getItem('validationStats'));
+            updateStatsUI();
+        }
+        if (localStorage.getItem('validationHistory')) {
+            history = JSON.parse(localStorage.getItem('validationHistory'));
+            renderHistory();
+        }
+
+        // Elements
+        const uploadZone = document.getElementById('upload-zone');
+        const imageInput = document.getElementById('imageInput');
+        const previewImg = document.getElementById('preview-img');
+        const form = document.getElementById('validate-form');
+        const labelNormal = document.getElementById('label-normal');
+        const labelPneumonia = document.getElementById('label-pneumonia');
+        const resultDisplay = document.getElementById('result-display');
+
+        // Upload handling
+        uploadZone.addEventListener('click', () => imageInput.click());
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('drag-over');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('drag-over');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length) {
+                imageInput.files = e.dataTransfer.files;
+                showPreview(e.dataTransfer.files[0]);
+            }
+        });
+
+        imageInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                showPreview(e.target.files[0]);
+            }
+        });
+
+        function showPreview(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImg.src = e.target.result;
+                previewImg.classList.add('active');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Label selection
+        document.querySelectorAll('.label-option input').forEach(input => {
+            input.addEventListener('change', () => {
+                labelNormal.classList.remove('selected');
+                labelPneumonia.classList.remove('selected');
+                if (input.value === 'NORMAL') {
+                    labelNormal.classList.add('selected');
+                } else {
+                    labelPneumonia.classList.add('selected');
+                }
+            });
+        });
+
+        // Form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!imageInput.files.length) {
+                alert('Please select an image');
+                return;
+            }
+
+            const trueLabel = document.querySelector('input[name="true_label"]:checked');
+            if (!trueLabel) {
+                alert('Please select the true label');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', imageInput.files[0]);
+            formData.append('true_label', trueLabel.value);
+
+            document.getElementById('test-btn').disabled = true;
+            document.getElementById('test-btn').textContent = 'Analyzing...';
+
+            try {
+                const response = await fetch('/validate', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                document.getElementById('test-btn').disabled = false;
+                document.getElementById('test-btn').textContent = '🔬 Test Prediction';
+
+                if (result.error) {
+                    alert(result.error);
+                    return;
+                }
+
+                // Update stats
+                stats.total++;
+                if (result.is_correct) {
+                    stats.correct++;
+                } else {
+                    stats.wrong++;
+                }
+                localStorage.setItem('validationStats', JSON.stringify(stats));
+                updateStatsUI();
+
+                // Add to history
+                history.unshift({
+                    filename: imageInput.files[0].name,
+                    true_label: trueLabel.value,
+                    prediction: result.prediction,
+                    confidence: result.confidence,
+                    is_correct: result.is_correct
+                });
+                localStorage.setItem('validationHistory', JSON.stringify(history));
+                renderHistory();
+
+                // Show result
+                showResult(result.is_correct, trueLabel.value, result.prediction, result.confidence);
+
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('test-btn').disabled = false;
+                document.getElementById('test-btn').textContent = '🔬 Test Prediction';
+                alert('An error occurred');
+            }
+        });
+
+        function updateStatsUI() {
+            document.getElementById('stat-total').textContent = stats.total;
+            document.getElementById('stat-correct').textContent = stats.correct;
+            document.getElementById('stat-wrong').textContent = stats.wrong;
+            const accuracy = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : '--';
+            document.getElementById('stat-accuracy').textContent = accuracy + '%';
+        }
+
+        function showResult(isCorrect, trueLabel, prediction, confidence) {
+            resultDisplay.classList.add('active');
+            resultDisplay.className = 'result-display active ' + (isCorrect ? 'correct' : 'wrong');
+
+            document.getElementById('result-icon').textContent = isCorrect ? '✅' : '❌';
+            document.getElementById('result-text').textContent = isCorrect ? 'Correct Prediction!' : 'Incorrect Prediction';
+            document.getElementById('result-details').textContent =
+                `Model predicted: ${prediction} (${confidence}%) | True label: ${trueLabel}`;
+        }
+
+        function renderHistory() {
+            const tbody = document.getElementById('history-body');
+
+            if (history.length === 0) {
+                tbody.innerHTML = '<tr class="empty-row"><td colspan="6" class="empty-state">No tests yet. Upload an image to start!</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = history.map((item, i) => `
+                <tr>
+                    <td>${history.length - i}</td>
+                    <td>${item.filename.substring(0, 20)}${item.filename.length > 20 ? '...' : ''}</td>
+                    <td><span class="badge ${item.true_label.toLowerCase()}">${item.true_label}</span></td>
+                    <td><span class="badge ${item.prediction.toLowerCase()}">${item.prediction}</span></td>
+                    <td>${item.confidence}%</td>
+                    <td><span class="badge ${item.is_correct ? 'correct' : 'wrong'}">${item.is_correct ? '✓ Correct' : '✗ Wrong'}</span></td>
+                </tr>
+            `).join('');
+        }
+
+        // Clear history
+        document.getElementById('clear-btn').addEventListener('click', () => {
+            if (confirm('Clear all test history and reset stats?')) {
+                stats = { total: 0, correct: 0, wrong: 0 };
+                history = [];
+                localStorage.removeItem('validationStats');
+                localStorage.removeItem('validationHistory');
+                updateStatsUI();
+                renderHistory();
+                resultDisplay.classList.remove('active');
+            }
+        });
+    </script>
+</body>
+
+</html>

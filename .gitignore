@@ -1,0 +1,9 @@
+# Ignore the large model file
+*.pth
+
+# Ignore python cache files
+__pycache__/
+
+# Ignore the uploads folder content
+static/uploads/*
+!static/uploads/.gitkeep

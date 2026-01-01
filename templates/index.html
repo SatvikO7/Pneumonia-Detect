@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pneumonia Detection AI | Medical X-Ray Analysis</title>
+    <meta name="description"
+        content="AI-powered chest X-ray analysis for pneumonia detection using InceptionV3 and Grad-CAM explainability.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #f0f4f8;
+            --bg-secondary: #e2e8f0;
+            --bg-card: #ffffff;
+            --border-color: #e2e8f0;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --accent-cyan: #0ea5e9;
+            --accent-purple: #8b5cf6;
+            --accent-emerald: #16a34a;
+            --accent-coral: #dc2626;
+            --gradient-1: linear-gradient(135deg, #0ea5e9 0%, #0284c7 50%, #0369a1 100%);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            min-height: 100vh;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-color);
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            background: var(--gradient-1);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+        }
+
+        .logo h1 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-nav {
+            display: flex;
+            gap: 12px;
+        }
+
+        .nav-link {
+            padding: 8px 16px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link:hover {
+            background: var(--bg-secondary);
+            color: var(--accent-cyan);
+        }
+
+        .nav-link.active {
+            background: var(--accent-cyan);
+            color: white;
+        }
+
+        /* Main Layout */
+        .main-wrapper {
+            position: relative;
+            min-height: calc(100vh - 76px);
+            padding: 40px 20px;
+        }
+
+        /* Floating Cards Container */
+        .floating-cards {
+            position: fixed;
+            top: 100px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .float-card {
+            position: absolute;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 16px;
+            width: 260px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            pointer-events: auto;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: default;
+        }
+
+        .float-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+            z-index: 10;
+        }
+
+        .float-card h3 {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Card Positions */
+        .float-card.top-left {
+            top: 20px;
+            left: 30px;
+        }
+
+        .float-card.top-right {
+            top: 20px;
+            right: 30px;
+        }
+
+        .float-card.bottom-left {
+            bottom: 80px;
+            left: 30px;
+        }
+
+        .float-card.bottom-right {
+            bottom: 80px;
+            right: 30px;
+        }
+
+        .float-card.mid-left {
+            top: 50%;
+            left: 30px;
+            transform: translateY(-50%);
+        }
+
+        .float-card.mid-right {
+            top: 50%;
+            right: 30px;
+            transform: translateY(-50%);
+        }
+
+        .float-card.mid-left:hover {
+            transform: translateY(calc(-50% - 8px)) scale(1.02);
+        }
+
+        .float-card.mid-right:hover {
+            transform: translateY(calc(-50% - 8px)) scale(1.02);
+        }
+
+        @media (max-width: 1400px) {
+            .floating-cards {
+                display: none;
+            }
+        }
+
+        /* Insight Items */
+        .insight-item {
+            display: flex;
+            gap: 10px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .insight-item:last-child {
+            border-bottom: none;
+        }
+
+        .insight-icon {
+            width: 28px;
+            height: 28px;
+            background: var(--bg-secondary);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .insight-text h4 {
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .insight-text p {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        /* Grad-CAM Legend */
+        .gradcam-legend {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+        }
+
+        .legend-dot.high {
+            background: #ef4444;
+        }
+
+        .legend-dot.medium {
+            background: #f59e0b;
+        }
+
+        .legend-dot.low {
+            background: #3b82f6;
+        }
+
+        .gradcam-info {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Educational Content */
+        .edu-section h4 {
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .edu-section p {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        .edu-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .edu-list li {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            padding: 3px 0;
+            padding-left: 14px;
+            position: relative;
+        }
+
+        .edu-list li::before {
+            content: '•';
+            position: absolute;
+            left: 4px;
+            color: var(--accent-cyan);
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .comparison-item {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .comparison-item .emoji {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+
+        .comparison-item .label {
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .comparison-item .desc {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        /* Center Panel */
+        .center-panel {
+            max-width: 700px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 2;
+        }
+
+        .main-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 32px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+        }
+
+        .card-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .card-header h2 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .card-header p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* Upload Zone */
+        .upload-zone {
+            border: 2px dashed var(--border-color);
+            border-radius: 16px;
+            padding: 50px 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--bg-secondary);
+        }
+
+        .upload-zone:hover,
+        .upload-zone.drag-over {
+            border-color: var(--accent-cyan);
+            background: rgba(14, 165, 233, 0.05);
+            transform: scale(1.01);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .upload-zone h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .upload-zone p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        #imageInput {
+            display: none;
+        }
+
+        .preview-container {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .preview-container.active {
+            display: block;
+        }
+
+        .preview-container img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+        }
+
+        .analyze-btn {
+            display: none;
+            width: 100%;
+            margin-top: 20px;
+            padding: 16px 32px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: white;
+            background: var(--gradient-1);
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .analyze-btn.active {
+            display: block;
+        }
+
+        .analyze-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(14, 165, 233, 0.3);
+        }
+
+        /* Loader */
+        .loader {
+            display: none;
+            text-align: center;
+            padding: 50px;
+        }
+
+        .loader.active {
+            display: block;
+        }
+
+        .loader-spinner {
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 20px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--accent-cyan);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Results */
+        .result-box {
+            display: none;
+        }
+
+        .result-box.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .diagnosis-banner {
+            padding: 28px;
+            border-radius: 16px;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .diagnosis-banner.normal {
+            background: linear-gradient(135deg, rgba(22, 163, 74, 0.12) 0%, rgba(22, 163, 74, 0.04) 100%);
+            border: 2px solid rgba(22, 163, 74, 0.3);
+        }
+
+        .diagnosis-banner.pneumonia {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.12) 0%, rgba(220, 38, 38, 0.04) 100%);
+            border: 2px solid rgba(220, 38, 38, 0.3);
+        }
+
+        .diagnosis-badge {
+            display: inline-block;
+            padding: 12px 32px;
+            border-radius: 50px;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: white;
+            letter-spacing: 1px;
+        }
+
+        .diagnosis-badge.normal {
+            background: var(--accent-emerald);
+            box-shadow: 0 10px 30px rgba(22, 163, 74, 0.3);
+        }
+
+        .diagnosis-badge.pneumonia {
+            background: var(--accent-coral);
+            box-shadow: 0 10px 30px rgba(220, 38, 38, 0.3);
+        }
+
+        .confidence-text {
+            margin-top: 16px;
+            font-size: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .confidence-text strong {
+            font-size: 1.8rem;
+            color: var(--text-primary);
+        }
+
+        .images-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .images-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .image-box {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .image-box:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .image-box-header {
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-card);
+        }
+
+        .image-box img {
+            width: 100%;
+            height: 240px;
+            object-fit: contain;
+            padding: 16px;
+        }
+
+        .new-analysis-btn {
+            width: 100%;
+            margin-top: 20px;
+            padding: 14px;
+            font-size: 1rem;
+            color: var(--text-secondary);
+            background: transparent;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .new-analysis-btn:hover {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+            background: rgba(14, 165, 233, 0.05);
+        }
+
+        /* Disclaimer */
+        .disclaimer {
+            background: rgba(220, 38, 38, 0.06);
+            border: 1px solid rgba(220, 38, 38, 0.2);
+            border-radius: 12px;
+            padding: 14px;
+            font-size: 0.8rem;
+            color: var(--accent-coral);
+            text-align: center;
+            margin-top: 24px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">
+            <div class="logo-icon">🫁</div>
+            <h1>Pneumonia Detection AI</h1>
+        </div>
+        <nav class="header-nav">
+            <a href="/" class="nav-link active">🔬 Diagnosis</a>
+            <a href="/validate" class="nav-link">🧪 Validation</a>
+        </nav>
+    </header>
+
+    <!-- Floating Info Cards -->
+    <div class="floating-cards">
+        <!-- Top Left - How It Works -->
+        <div class="float-card top-left">
+            <h3>🤖 How It Works</h3>
+            <div class="insight-item">
+                <div class="insight-icon">1️⃣</div>
+                <div class="insight-text">
+                    <h4>Image Preprocessing</h4>
+                    <p>X-ray resized to 299×299 and normalized</p>
+                </div>
+            </div>
+            <div class="insight-item">
+                <div class="insight-icon">2️⃣</div>
+                <div class="insight-text">
+                    <h4>InceptionV3 Analysis</h4>
+                    <p>Deep learning model makes prediction</p>
+                </div>
+            </div>
+            <div class="insight-item">
+                <div class="insight-icon">3️⃣</div>
+                <div class="insight-text">
+                    <h4>Grad-CAM Visualization</h4>
+                    <p>Heatmap shows AI attention regions</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Right - Grad-CAM Legend -->
+        <div class="float-card top-right">
+            <h3>🔥 Understanding Grad-CAM</h3>
+            <div class="gradcam-legend">
+                <div class="legend-item">
+                    <div class="legend-dot high"></div><span>High attention</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot medium"></div><span>Medium</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot low"></div><span>Low</span>
+                </div>
+            </div>
+            <p class="gradcam-info">
+                Red/yellow areas show where the AI focused most. For pneumonia, these highlight areas of lung opacity.
+            </p>
+        </div>
+
+        <!-- Bottom Left - About Pneumonia -->
+        <div class="float-card bottom-left">
+            <h3>📚 About Pneumonia</h3>
+            <div class="edu-section">
+                <h4>What is it?</h4>
+                <p>A lung infection causing inflammation and fluid buildup in air sacs.</p>
+            </div>
+            <div class="edu-section" style="margin-top: 10px;">
+                <h4>Common Symptoms</h4>
+                <ul class="edu-list">
+                    <li>Persistent cough with phlegm</li>
+                    <li>Fever and chills</li>
+                    <li>Shortness of breath</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Bottom Right - X-Ray Comparison -->
+        <div class="float-card bottom-right">
+            <h3>🩻 X-Ray Appearance</h3>
+            <div class="comparison-grid">
+                <div class="comparison-item">
+                    <div class="emoji">✅</div>
+                    <div class="label">Normal</div>
+                    <div class="desc">Clear, dark lung fields</div>
+                </div>
+                <div class="comparison-item">
+                    <div class="emoji">⚠️</div>
+                    <div class="label">Pneumonia</div>
+                    <div class="desc">White patches/opacity</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-wrapper">
+        <div class="center-panel">
+            <div class="main-card">
+                <div class="card-header">
+                    <h2>🔬 Chest X-Ray Analysis</h2>
+                    <p>Upload an X-ray image for AI-powered pneumonia detection</p>
+                </div>
+
+                <form id="upload-form" enctype="multipart/form-data">
+                    <div class="upload-zone" id="upload-zone">
+                        <span class="upload-icon">🩻</span>
+                        <h3>Drop your chest X-ray here</h3>
+                        <p>or click to browse • Supports JPG, PNG</p>
+                        <input type="file" id="imageInput" name="file" accept="image/*" required>
+                    </div>
+
+                    <div class="preview-container" id="preview-container">
+                        <img id="preview-image" src="" alt="Preview">
+                    </div>
+
+                    <button type="submit" class="analyze-btn" id="analyze-btn">
+                        🔬 Analyze X-Ray
+                    </button>
+                </form>
+
+                <div class="loader" id="loader">
+                    <div class="loader-spinner"></div>
+                    <p style="color: var(--text-secondary);">Running AI analysis...</p>
+                </div>
+
+                <div class="result-box" id="resultBox">
+                    <div class="diagnosis-banner" id="diagnosis-banner">
+                        <span class="diagnosis-badge" id="diagnosis-badge"></span>
+                        <div class="confidence-text">
+                            Confidence: <strong><span id="confidence-val"></span>%</strong>
+                        </div>
+                    </div>
+
+                    <div class="images-grid">
+                        <div class="image-box">
+                            <div class="image-box-header">🩻 Original X-Ray</div>
+                            <img id="original-img" src="" alt="Original">
+                        </div>
+                        <div class="image-box">
+                            <div class="image-box-header">🔥 AI Attention Map</div>
+                            <img id="gradcam-img" src="" alt="Grad-CAM">
+                        </div>
+                    </div>
+
+                    <button type="button" class="new-analysis-btn" id="new-analysis-btn">
+                        ↻ Analyze Another X-Ray
+                    </button>
+                </div>
+
+                <div class="disclaimer">
+                    ⚠️ For educational purposes only. Always consult a healthcare professional.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const uploadZone = document.getElementById('upload-zone');
+        const imageInput = document.getElementById('imageInput');
+        const previewContainer = document.getElementById('preview-container');
+        const previewImage = document.getElementById('preview-image');
+        const analyzeBtn = document.getElementById('analyze-btn');
+        const loader = document.getElementById('loader');
+        const resultBox = document.getElementById('resultBox');
+        const form = document.getElementById('upload-form');
+
+        uploadZone.addEventListener('click', () => imageInput.click());
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('drag-over');
+        });
+
+        uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length) {
+                imageInput.files = e.dataTransfer.files;
+                handleFileSelect(e.dataTransfer.files[0]);
+            }
+        });
+
+        imageInput.addEventListener('change', (e) => {
+            if (e.target.files.length) handleFileSelect(e.target.files[0]);
+        });
+
+        function handleFileSelect(file) {
+            if (!file.type.startsWith('image/')) { alert('Please select an image file'); return; }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImage.src = e.target.result;
+                previewContainer.classList.add('active');
+                analyzeBtn.classList.add('active');
+                resultBox.classList.remove('active');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!imageInput.files.length) { alert('Please select an image first'); return; }
+
+            const formData = new FormData();
+            formData.append('file', imageInput.files[0]);
+
+            analyzeBtn.classList.remove('active');
+            previewContainer.classList.remove('active');
+            uploadZone.style.display = 'none';
+            loader.classList.add('active');
+            resultBox.classList.remove('active');
+
+            try {
+                const response = await fetch('/predict', { method: 'POST', body: formData });
+                const result = await response.json();
+                loader.classList.remove('active');
+
+                if (result.error) { alert(result.error); resetUI(); return; }
+
+                const isNormal = result.class === 'NORMAL';
+                document.getElementById('diagnosis-banner').className = 'diagnosis-banner ' + (isNormal ? 'normal' : 'pneumonia');
+                const badge = document.getElementById('diagnosis-badge');
+                badge.className = 'diagnosis-badge ' + (isNormal ? 'normal' : 'pneumonia');
+                badge.innerHTML = (isNormal ? '✓ ' : '⚠ ') + result.class;
+
+                document.getElementById('confidence-val').textContent = result.confidence;
+                document.getElementById('original-img').src = result.original_url;
+                document.getElementById('gradcam-img').src = result.gradcam_url;
+
+                resultBox.classList.add('active');
+            } catch (error) {
+                console.error('Error:', error);
+                loader.classList.remove('active');
+                alert('An error occurred while processing.');
+                resetUI();
+            }
+        });
+
+        document.getElementById('new-analysis-btn').addEventListener('click', resetUI);
+
+        function resetUI() {
+            uploadZone.style.display = 'block';
+            previewContainer.classList.remove('active');
+            analyzeBtn.classList.remove('active');
+            resultBox.classList.remove('active');
+            loader.classList.remove('active');
+            imageInput.value = '';
+        }
+    </script>
+</body>
+
+</html>
